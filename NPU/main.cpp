@@ -1,8 +1,14 @@
 #include <systemc.h>
 #include "Pixel_Memory.h"
-#include "Externel_DRAM.h"
+#include "Input_Tracker.h"
 #include "IDP_Manager.h"
+#include "NPU_controller.h"
+#include "pixel_allocator.h"
+#include "ccm_controller.h"
+#include "PRE.h"
 #include "SYSTEM.h"
+#include "tb.h"
+
 
 SYSTEM *top = NULL;
 

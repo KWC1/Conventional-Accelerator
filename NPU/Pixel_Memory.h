@@ -12,12 +12,14 @@ SC_MODULE(Pixel_Memory) {
 	sc_in<bool> DRAM_valid;
 	sc_in<bool> IDP_valid;
 	sc_in<bool> Dout_ready;
+	sc_in<sc_int<16>> pixel_location;
 
 	///// Pixel_Memory output port /////
 	sc_out<sc_int<16>> Dout;
 	sc_out<bool> Dout_valid;
 	sc_out<bool> DRAM_ready;
 	sc_out<bool> IDP_ready;
+	sc_out<sc_int<16>> Dout_pixel_value;
 
 	void Pixel_Memory_main();
 
@@ -27,7 +29,13 @@ SC_MODULE(Pixel_Memory) {
 };
 
 sc_int<16> input_arr[100];			 // use like memory
-sc_int<16> pixel_arr[100][16];
+sc_int<16> NZV_arr[100];			 // pixel value memory
+sc_int<16> NZV_count[100];			 // number of NZV
+
+int NZV_num = 0;
+int each_NZV_num = 0;
+int location;
+sc_int<16> pixel_value;
 void Pixel_Memory::Pixel_Memory_main(void) {
 	///// initialize handshake signal /////
 	Dout_valid.write(0);
@@ -41,6 +49,7 @@ void Pixel_Memory::Pixel_Memory_main(void) {
 		cout << "failed to open file" << endl;
 		exit(0);
 	}
+
 
 	while (1) {
 		///// Pixel_Memory module local variable /////
@@ -63,31 +72,41 @@ void Pixel_Memory::Pixel_Memory_main(void) {
 			input_addr = DRAM_addr.read();
 			input_Din = Din.read();
 			sc_bv<16> b_input_Din = input_Din;
+			sc_bv<16> b_input_addr = input_addr;
 			
-			cout << "pixel value" << endl;
 			for (int i = 15; i > -1; i--) {
 				if (b_input_Din[i] == 1) {
 					fgets(line, sizeof(line), fp);
-					pixel_arr[input_addr][15 - i] = atoi(line);
-					cout << pixel_arr[input_addr][15 - i] << endl;
+					NZV_arr[NZV_num] = atoi(line);
+					NZV_num++;
+					each_NZV_num++;
 				}
-			}
+			}			
+
+			NZV_count[input_addr] = each_NZV_num;
+			each_NZV_num = 0;			
 
 			DRAM_ready.write(1);
 			input_arr[input_addr] = input_Din;
-
-			cout << "pixel memory area" << endl;
-			cout << "addr 1:" << input_arr[1] << endl;
-			cout << "addr 2:" << input_arr[2] << endl;
-			cout << "addr 3:" << input_arr[3] << endl << endl;
+			
 		}
 		else if (D_r == 1) {
 			input_addr = IDP_addr.read();
 			IDP_ready.write(1);
 			output_Dout = input_arr[input_addr];
 
+			int sum = 0;
+			location = pixel_location.read();
+
+			for (int k = 1; k < input_addr; k++) {
+				sum += NZV_count[k];
+			}
+			pixel_value = NZV_arr[sum + location - 1];
+
+
 			////// send output to IDP Manager //////
 			Dout.write(output_Dout);
+			Dout_pixel_value.write(pixel_value);
 			Dout_valid.write(1);
 
 			////// wait ready signal from IDP Manager //////
